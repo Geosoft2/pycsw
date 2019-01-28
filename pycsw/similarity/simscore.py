@@ -225,7 +225,7 @@ def getAr(points):
 
 
 '''
-Polygon Area in m²
+Polygon Area on spherical earth in m²
 '''
 def getPolAr(entry):
     lon, lat = zip(*entry['vector'])
@@ -244,7 +244,6 @@ def getPolAr(entry):
 
 def hasArea(entry):
     if getPolAr(entry)==0:
-        print(str(getPolAr(entry)))
         return False
     return True
 
@@ -257,13 +256,12 @@ Align Polygons by normalizing their sizes and moving polygonB on top of polygonA
 
 def uniformPolygonArea(entry):
     norm = 1000
-    eArea = getPolAr(entry)
+    eArea = (Polygon(entry["vector"])).area
     fac = math.sqrt(norm/eArea)
     coords = entry["vector"]
     for i in coords:
-        for j in i:
-            j=j*fac
-    #coords = map(lambda x: fac*x, entry["vector"])
+        i[0]=i[0]*fac
+        i[1]=i[1]*fac
     return coords
 
 
@@ -283,6 +281,8 @@ def moveCoordinates(coordsA, coordsB):
 def getAlignedPolygons(entryA,entryB):
     unAreaA= uniformPolygonArea(entryA)
     unAreaB= uniformPolygonArea(entryB)
+    print("area A: "+str(Polygon(unAreaA).area))
+    print("area B: "+str(Polygon(unAreaB).area))
     return (moveCoordinates(unAreaA,unAreaB))
 
 
@@ -419,13 +419,13 @@ def getShapeSim(entryA, entryB):
         return 1
     #one line, one polygon
     if not hasArea(entryA) or not hasArea(entryB):
-        print(str(entryB['id'])+" has no area")
         return 0
     polygs = getAlignedPolygons(entryA,entryB)
     polygonA = Polygon(polygs[0])
     polygonB = Polygon(polygs[1])
     intersec = (polygonA.intersection(polygonB)).area
     sim = intersec/(polygonA.area+(polygonB.area-intersec))
+    print(str(sim))
     return sim 
 
 
@@ -452,25 +452,25 @@ def getCenterGeoSim(entryA, entryB):
 
 
 def getCenterTempSim(entryA, entryB):
-    if getInterv(entryA["time"])==0 or getInterv(entryB["time"])==0:
+    if getInterv(entryA["time"]) is None or getInterv(entryB["time"]) is None:
         return 0
 
     frmt = "%Y-%m-%dT%H:%M:%SZ" 
-    if entryA["time"][0]==entryA["time"][1]:
-        centerA=entryA["time"][0]
+    if getInterv(entryA["time"]).total_seconds()==0:
+        centerA=datetime.datetime.strptime(entryA["time"][0],frmt)
     else: 
         centerA=datetime.datetime.strptime(entryA["time"][0],frmt)+(getInterv(entryA["time"])/2)
-    if entryB["time"][0]==entryB["time"][1]:
-        centerB=entryB["time"][0]
+    if getInterv(entryB["time"]).total_seconds()==0:
+        centerB=datetime.datetime.strptime(entryB["time"][0],frmt)
     else: 
         centerB=datetime.datetime.strptime(entryB["time"][0],frmt)+(getInterv(entryB["time"])/2)
 
     tdelta = centerA-centerB
     tdelta = tdelta.total_seconds()
-
+    
     max = datetime.timedelta(days=365000).total_seconds()
 
-    return tdelta/max
+    return 1-(tdelta/max)
 
 
 #########################################################################
@@ -612,7 +612,7 @@ output:
 '''
 def getInterTempSim(entryA,entryB):
     frmt = "%Y-%m-%dT%H:%M:%SZ" 
-    if getInterv(entryA["time"])==0 or getInterv(entryB["time"])==0:
+    if getInterv(entryA["time"]).total_seconds()==0 or getInterv(entryB["time"]).total_seconds()==0:
         return 0
     interv=float(0)
     #starting points of intervals A, B
@@ -633,14 +633,14 @@ def getInterTempSim(entryA,entryB):
             return 1
         #intersection, B starts earlier than A
         else:
-            interv = getInterv([startA,endB])
+            interv = getInterv([entryA["time"][0],entryB["time"][1]])
     #intersection, A starts earlier than B
     elif startB>startA:
         #B in A
         if endB<endA:
             interv = getInterv(entryB["time"]).total_seconds()
         else:
-            interv = getInterv([startB,endA]).total_seconds()
+            interv = getInterv([entryB["time"][0],entryA["time"][1]]).total_seconds()
     
     res = interv/lengthA
     return res
@@ -782,7 +782,7 @@ def getExSim(entryA, entryB, geo, tim, cri):
     bboxB = checkBboxInput(entryB)
     vectorA = checkVectorInput(entryA)
     vectorB = checkVectorInput(entryB)
-
+    
     geoSim = 0
     tempSim = 0
 
@@ -817,6 +817,7 @@ def getExSim(entryA, entryB, geo, tim, cri):
     if cri==3:
         geoSim=0
         if vectorA and vectorB:
+            print("here we go")
             geoSim=getShapeSim(entryA, entryB)
         return geoSim
 
@@ -835,14 +836,19 @@ def getSimScoreTotal(entryA, entryB, geo, tim, ext, dat, loc, mxm, dtl):
     dSim = getIndSim(entryA, entryB, geo, tim, 2)
     if dtl is None or not dtl or not checkVectorInput(entryA) or not checkVectorInput(entryB): 
         lSim = getIndSim(entryA, entryB, geo, tim, 1)
+        print("lSim "+str(lSim))
     else: 
         lSim = getExSim(entryA, entryB, geo, tim, 1)
+        print("lSim "+str(lSim))
     if dtl is None or not dtl or not checkVectorInput(entryA) or not checkVectorInput(entryB): 
         eSim = getIndSim(entryA, entryB, geo, tim, 0)
+        print("eSim "+str(eSim))
     else: 
         eSim = getExSim(entryA, entryB, geo, tim, 0)
-    if dtl and checkVectorInput(entryA) and checkVectorInput(entryB) and loc>0 and ext<0:
+        print("eSim "+str(eSim))
+    if dtl and checkVectorInput(entryA) and checkVectorInput(entryB) and loc>0 and ext>0 and geo>0:
         sSim = getExSim(entryA, entryB, geo, tim, 3)
+        print("sSim "+str(sSim))
         totalSum=ext+dat+loc+((ext+loc)/2)
     else:
         totalSum=ext+dat+loc
@@ -926,12 +932,27 @@ def getSimilarRecords(entries, ent, n, ext, dat, loc, geo, tim, mxm, dtl):
 ################ Testdata ###########################################
 #####################################################################
 
-muenster1t1 ={
-        "id": 'urn:uuid: 1a', 
+ausgang ={
+        "id": 'urn:uuid:orig', 
         "wkt_geometry": [51.917591, 7.549667, 52.00137, 7.704849], 
         'time': ['2000-01-11T02:28:00Z', '2010-01-11T02:28:00Z'], 
         'vector': [[52.00137, 7.549667], [52.00137, 7.704849], [51.917591, 7.704849], [51.917591, 7.549667]], 
         'raster': False}
+
+beispiel1 ={
+        "id": 'urn:uuid:bsp1', 
+        "wkt_geometry": [-51.917591, -7.549667, -52.00137, -7.704849], 
+        'time': ['2005-01-11T02:28:00Z', '2005-01-11T02:28:00Z'], 
+        'vector': [[-52.00137, -7.549667], [-52.00137, -7.704849], [-51.917591, -7.704849], [-51.917591, -7.549667]], 
+        'raster': False}
+
+beispiel2 ={
+        'id': 'urn:uuid:bsp2', 
+        'wkt_geometry': [51.618017, 7.619019, 52.593038, 9.574585], 
+        'time': ['2004-01-11T02:28:00Z', '2014-01-11T02:28:00Z'], 
+        'vector': [[52.593038, 7.619019], [52.593038, 9.574585], [51.618017, 9.574585], [51.618017, 7.619019]], 
+        'raster': False
+    }
 
 #################################
 ##### different temp extent #####
@@ -1025,12 +1046,14 @@ Mitteldeutschland ={
         'raster': False
     }
 
-entriesGeo=[muenster1t1, muenster1t2, Muenster2, Muenster3, Muenster4, australien, Mitteldeutschland]
-entriesDat=[muenster1t1, muenster1d1, muenster1d2]
-entriesTime=[muenster1t1, muenster1t2, muenster1t3, muenster1t4]
-entriesAll=[muenster1t1, muenster1t2, Muenster2, Muenster3, Muenster4, australien, Mitteldeutschland, muenster1t3, muenster1t4, muenster1t2, muenster1d1, muenster1d2]
+entriesGeo=[ausgang, muenster1t2, Muenster2, Muenster3, Muenster4, australien, Mitteldeutschland]
+entriesDat=[ausgang, muenster1d1, muenster1d2]
+entriesTime=[ausgang, muenster1t2, muenster1t3, muenster1t4]
+entriesAll=[ausgang, muenster1t2, Muenster2, Muenster3, Muenster4, australien, Mitteldeutschland, muenster1t3, muenster1t4, muenster1t2, muenster1d1, muenster1d2]
+entriesBsp=[ausgang, beispiel2]
 
-print(getSimilarRecords(entriesGeo, muenster1t1, 10,0,0,2,1,0,5,True))
+
+print(getSimilarRecords(entriesBsp, ausgang, 1,1,1,1,1,0,5,True))
 '''
         ent is an entry and therefor the same format
         n : number of similar records to be retrieved
