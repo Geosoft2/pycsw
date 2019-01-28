@@ -1920,11 +1920,37 @@ class Csw3(object):
                     self.parent.context.namespaces)).text = val
 
                 val = util.getqattr(recobj, queryables['dc:vector_rep']['dbcol'])
-                if val:
+                # get geojson of polygon
+                try:
+                    geometry = util.wkt2geom(val, False)
+                    print(type(geometry))
+                    x, y = geometry.exterior.coords.xy
+                    print(x,y)
+                    points = []
+                    for index, coor in enumerate(x):
+                        points.append([coor, y[index]])
+                    print("hier")
+                    geojson = {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Polygon",
+                            "coordinates": [
+                                points
+                            ]
+                        },
+                        "properties": {
+                            "@crs": "http://www.opengis.net/def/crs/EPSG/0/4326",
+                            "@dimensions": "2"
+                        }
+                    }
                     #array_of_string = ast.literal_eval(val)
                     etree.SubElement(record,
                     util.nspath_eval('dc:vector_rep',
-                    self.parent.context.namespaces)).text = val
+                    self.parent.context.namespaces)).text = str(geojson)#polygon.ExportToJson()
+                except Exception as e:
+                    print(e)
+                    geometry = []
+                    
                 
                 val = util.getqattr(recobj, queryables['dc:time_begin']['dbcol'])
                 if val:
