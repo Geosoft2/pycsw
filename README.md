@@ -25,9 +25,9 @@ Please read the docs at <http://pycsw.org/docs> for more information.
 ### Installation
 
 ``` sourceCode python
-git clone https://github.com/bennidietz/pycsw_fork.git && cd pycsw
+git clone https://github.com/KathHv/pycsw.git && cd pycsw
 pip install -e . && pip install -r requirements-standalone.txt
-python pycsw/wsgi.py
+python3 pycsw/wsgi.py
 ```
 
 ### Start virtenv and pycsw again
@@ -35,7 +35,7 @@ python pycsw/wsgi.py
 Run in pycsw folder:
 
 ``` sourceCode python
-python pycsw/wsgi.py
+python3 pycsw/wsgi.py
 ```
 
 ### What is new in our pycsw version?
