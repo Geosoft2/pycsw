@@ -22,7 +22,7 @@ major platforms (Windows, Linux, Mac OS X).
 
 Please read the docs at <http://pycsw.org/docs> for more information.
 
-# Installation
+### Installation
 
 ``` sourceCode python
 git clone https://github.com/bennidietz/pycsw_fork.git && cd pycsw
@@ -30,7 +30,7 @@ pip install -e . && pip install -r requirements-standalone.txt
 python pycsw/wsgi.py
 ```
 
-# Start virtenv and pycsw again
+### Start virtenv and pycsw again
 
 Run in pycsw folder:
 
@@ -38,7 +38,7 @@ Run in pycsw folder:
 python pycsw/wsgi.py
 ```
 
-# What is new in our pycsw version?
+### What is new in our pycsw version?
 We enhanced pycsw with two similarity functions that include metadata
 fields of the records like the wkt\_geometry, the temporal extent, the
 vector representation and the format of the related file.
