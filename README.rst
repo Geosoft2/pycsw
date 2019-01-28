@@ -28,7 +28,6 @@ _________________
 
 .. code:: python 
 
-  virtualenv pycswVirtEnv && cd pycswVirtEnv && . bin/activate
   git clone https://github.com/bennidietz/pycsw_fork.git && cd pycsw
   pip install -e . && pip install -r requirements-standalone.txt
   python pycsw/wsgi.py
@@ -38,13 +37,10 @@ _________________
 Start virtenv and pycsw again
 ___________________
 
-Run in folder where the pycswVirtEnv folder is in:
+Run in pycsw folder:
 
 .. code:: python
 
- virtualenv pycswVirtEnv && cd pycswVirtEnv && . bin/activate
- cd pycsw
- pip install -e . && pip install -r requirements-standalone.txt  
  python pycsw/wsgi.py
 
 
