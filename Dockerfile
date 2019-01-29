@@ -81,7 +81,7 @@ COPY bin bin/
 COPY setup.py .
 COPY MANIFEST.in .
 COPY VERSION.txt .
-COPY README.rst .
+COPY README.md .
 
 RUN pip3 install .
 
@@ -108,7 +108,7 @@ WORKDIR /home/pycsw
 
 USER pycsw
 
-COPY db-data /tests/functionaltests/suites/cite/data/cite.db
+COPY db-data tests/functionaltests/suites/cite/data/cite.db
 
 EXPOSE 8000
 
