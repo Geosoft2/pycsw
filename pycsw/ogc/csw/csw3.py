@@ -1306,6 +1306,7 @@ class Csw3(object):
         WEIGHT_LOCATION_SIM = None
         WEIGHT_GEOGRAPHIC_SIM = None
         WEIGHT_EXTENT_SIM = None
+        DETAILED_ALGORITHM = None
         '''for each parameter of the similarity function:
             if parameter for the similary function is not changed in the request, take the default value from the config file
             if parameter is changed but in a wrong format, raise an error that is visible for the user
@@ -1388,9 +1389,26 @@ class Csw3(object):
                  'extent_weight', "Parameter value of 'extent_weight' must be integer or float")
         else: 
             WEIGHT_EXTENT_SIM = int(metadatasimilarity.get('extent_weight'))
+        if 'detailed' in self.parent.kvp:
+            input = self.parent.kvp['detailed']
+            if input == 'true' or input == 'True' or input == '1':
+                DETAILED_ALGORITHM = True
+            elif input == 'false' or input == 'False' or input == '0':
+                DETAILED_ALGORITHM = False
+            else:
+                return self.exceptionreport('InvalidParameterValue',
+                'detailed', "Parameter value must be either in ['true','True','1'] or in ['false','False','0']") 
+        else: 
+            configfield_detailedAlgorithm = metadatasimilarity.get('detailed_algorithm')
+            if configfield_detailedAlgorithm == 'true' or configfield_detailedAlgorithm == 'True' or configfield_detailedAlgorithm == '1':
+                    DETAILED_ALGORITHM = True
+            elif configfield_detailedAlgorithm == 'false' or configfield_detailedAlgorithm == 'False' or configfield_detailedAlgorithm == '0':
+                DETAILED_ALGORITHM = False
+            else:
+                raise Exception("Value of fields 'detailed_algorithm' is not valid")
 
         LOGGER.debug([MAX_NUMBER_RECORDS, WEIGHT_SPATIAL_SIM, WEIGHT_TEMP_SIM, WEIGHT_DATATYPE_SIM, 
-        WEIGHT_LOCATION_SIM, WEIGHT_GEOGRAPHIC_SIM, WEIGHT_EXTENT_SIM])
+        WEIGHT_LOCATION_SIM, WEIGHT_GEOGRAPHIC_SIM, WEIGHT_EXTENT_SIM, DETAILED_ALGORITHM])
 
         # get all records
         all_records = self.parent.repository.queryWithoutLimit(constraint="")[1]
@@ -1421,9 +1439,16 @@ class Csw3(object):
                 record_dict['time'] = None
             else:
                 record_dict['time'] = [record.time_begin, record.time_end]
-            try:
-                record_dict['vector'] = ast.literal_eval(record.vector_rep)
-            except:
+            #try:
+            #record_dict['vector'] = ast.literal_eval(record.vector_rep)
+            if record.vector_rep:
+                geometry = util.wkt2geom(str(record.vector_rep), False)
+                x, y = geometry.exterior.coords.xy
+                points = []
+                for index, coor in enumerate(x):
+                    points.append([coor, y[index]])
+                record_dict['vector'] = points
+            else:
                 record_dict['vector'] = None
             vector_formats = ["image/tiff"]
             if record.format is not None:
@@ -1448,7 +1473,7 @@ class Csw3(object):
             try:
                 # call similarity function from parameters
                 simscores = simscore.getSimilarRecords(records_array, compared_record, MAX_NUMBER_RECORDS, WEIGHT_EXTENT_SIM, WEIGHT_DATATYPE_SIM, 
-                    WEIGHT_LOCATION_SIM, WEIGHT_GEOGRAPHIC_SIM, WEIGHT_TEMP_SIM, weight_max_value)
+                    WEIGHT_LOCATION_SIM, WEIGHT_GEOGRAPHIC_SIM, WEIGHT_TEMP_SIM, weight_max_value, DETAILED_ALGORITHM)
                 LOGGER.debug(simscores)
                 LOGGER.debug(MAX_NUMBER_RECORDS)
                 LOGGER.debug(len(simscores))
@@ -1903,11 +1928,37 @@ class Csw3(object):
                     self.parent.context.namespaces)).text = val
 
                 val = util.getqattr(recobj, queryables['dc:vector_rep']['dbcol'])
-                if val:
-                    #array_of_string = ast.literal_eval(val)
+                # get geojson of polygon
+                try:
+                    #collecting all points of the polygon
+                    geometry = util.wkt2geom(val, False)
+                    x, y = geometry.exterior.coords.xy
+                    points = []
+                    for index, coor in enumerate(x):
+                        points.append([coor, y[index]])
+                    # geospatial data encoded in geojson
+                    geojson = {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Polygon",
+                            "coordinates": [
+                                points
+                            ]
+                        },
+                        "properties": {
+                            "@crs": "http://www.opengis.net/def/crs/EPSG/0/4326",
+                            "@dimensions": "2"
+                        }
+                    }
+                    # encoded as a string that contains geojson as arrays cannot be saves properly in an XML file
                     etree.SubElement(record,
                     util.nspath_eval('dc:vector_rep',
-                    self.parent.context.namespaces)).text = val
+                    self.parent.context.namespaces)).text = str(geojson)
+                except Exception as e:
+                    # when geometry could not be built (e.g. when database field is None),
+                    # do not view the vector_rep in teh CSW
+                    pass
+                    
                 
                 val = util.getqattr(recobj, queryables['dc:time_begin']['dbcol'])
                 if val:
@@ -2515,15 +2566,26 @@ def write_boundingbox(bbox, nsmap):
             return None
 
         if len(bbox2) == 4:
-            boundingbox = etree.Element(util.nspath_eval('ows20:BoundingBox',
-            nsmap), crs='http://www.opengis.net/def/crs/EPSG/0/4326',
-            dimensions='2')
+            boundingbox = etree.Element(util.nspath_eval('dc:BoundingBox',
+            nsmap))
 
-            etree.SubElement(boundingbox, util.nspath_eval('ows20:LowerCorner',
-            nsmap)).text = '%s %s' % (bbox2[1], bbox2[0])
+            # geospatial data encoded in geojson
+            geojsonbbox = geojson = {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Polygon",
+                            "coordinates": [
+                                [[bbox2[1], bbox2[0]], [bbox2[3], bbox2[2]]]
+                            ]
+                        },
+                        "properties": {
+                            "@crs": "http://www.opengis.net/def/crs/EPSG/0/4326",
+                            "@dimensions": "2"
+                        }
+                    }
 
-            etree.SubElement(boundingbox, util.nspath_eval('ows20:UpperCorner',
-            nsmap)).text = '%s %s' % (bbox2[3], bbox2[2])
+            # encoded as a string that contains geojson as arrays cannot be saves properly in an XML file
+            boundingbox.text = str(geojsonbbox)
 
             return boundingbox
         else:

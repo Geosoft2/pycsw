@@ -1078,8 +1078,7 @@ entriesTime=[ausgang, muenster1t2, muenster1t3, muenster1t4]
 entriesAll=[ausgang, muenster1t2, Muenster2, Muenster3, Muenster4, australien, Mitteldeutschland, muenster1t3, muenster1t4, muenster1t2, muenster1d1, muenster1d2]
 entriesBsp=[ausgang, beispiel2]
 
-
-print(getSimilarRecords(entriesBsp, ausgang, 1,1,1,1,1,1,5,True))
+#print(getSimilarRecords(entriesGeo, muenster1t1, 10,0,0,2,1,0,5,True))
 '''
         ent is an entry and therefor the same format
         n : number of similar records to be retrieved
