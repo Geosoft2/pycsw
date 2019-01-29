@@ -1929,11 +1929,13 @@ class Csw3(object):
                 val = util.getqattr(recobj, queryables['dc:vector_rep']['dbcol'])
                 # get geojson of polygon
                 try:
+                    #collecting all points of the polygon
                     geometry = util.wkt2geom(val, False)
                     x, y = geometry.exterior.coords.xy
                     points = []
                     for index, coor in enumerate(x):
                         points.append([coor, y[index]])
+                    # geospatial data encoded in geojson
                     geojson = {
                         "type": "Feature",
                         "geometry": {
@@ -1947,13 +1949,14 @@ class Csw3(object):
                             "@dimensions": "2"
                         }
                     }
-                    #array_of_string = ast.literal_eval(val)
+                    # encoded as a string that contains geojson as arrays cannot be saves properly in an XML file
                     etree.SubElement(record,
                     util.nspath_eval('dc:vector_rep',
-                    self.parent.context.namespaces)).text = str(geojson)#polygon.ExportToJson()
+                    self.parent.context.namespaces)).text = str(geojson)
                 except Exception as e:
-                    print(e)
-                    geometry = []
+                    # when geometry could not be built (e.g. when database field is None),
+                    # do not view the vector_rep in teh CSW
+                    pass
                     
                 
                 val = util.getqattr(recobj, queryables['dc:time_begin']['dbcol'])
@@ -2562,15 +2565,26 @@ def write_boundingbox(bbox, nsmap):
             return None
 
         if len(bbox2) == 4:
-            boundingbox = etree.Element(util.nspath_eval('ows20:BoundingBox',
-            nsmap), crs='http://www.opengis.net/def/crs/EPSG/0/4326',
-            dimensions='2')
+            boundingbox = etree.Element(util.nspath_eval('dc:BoundingBox',
+            nsmap))
 
-            etree.SubElement(boundingbox, util.nspath_eval('ows20:LowerCorner',
-            nsmap)).text = '%s %s' % (bbox2[1], bbox2[0])
+            # geospatial data encoded in geojson
+            geojsonbbox = geojson = {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Polygon",
+                            "coordinates": [
+                                [[bbox2[1], bbox2[0]], [bbox2[3], bbox2[2]]]
+                            ]
+                        },
+                        "properties": {
+                            "@crs": "http://www.opengis.net/def/crs/EPSG/0/4326",
+                            "@dimensions": "2"
+                        }
+                    }
 
-            etree.SubElement(boundingbox, util.nspath_eval('ows20:UpperCorner',
-            nsmap)).text = '%s %s' % (bbox2[3], bbox2[2])
+            # encoded as a string that contains geojson as arrays cannot be saves properly in an XML file
+            boundingbox.text = str(geojsonbbox)
 
             return boundingbox
         else:
