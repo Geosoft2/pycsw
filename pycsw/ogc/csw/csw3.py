@@ -43,7 +43,8 @@ import pycsw.plugins.outputschemas
 from pycsw.core import config, log, metadata, util
 from pycsw.core.formats.fmt_json import xml2dict
 from pycsw.ogc.fes import fes2
-from pycsw.similarity import simscore
+from pycsw.plugins import simscore
+
 import logging
 import ast
 

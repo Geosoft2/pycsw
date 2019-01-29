@@ -27,10 +27,14 @@ Please read the docs at <http://pycsw.org/docs> for more information.
 ``` sourceCode python
 git clone https://github.com/KathHv/pycsw.git && cd pycsw
 pip install -e . && pip install -r requirements-standalone.txt
-python3 pycsw/wsgi.py
 ```
 
-### Start virtenv and pycsw again
+### Configuration for Server-Admin
+Edit [preferences.cfg](https://github.com/KathHv/pycsw/blob/master/preferences.cfg)
+To edit the default values of the parameters in GetSimilarRecords edit the parameters in [similarity].
+For more information see the (pycsw documentation)[http://docs.pycsw.org/en/latest/configuration.html].
+
+### Run pycsw
 
 Run in pycsw folder:
 
