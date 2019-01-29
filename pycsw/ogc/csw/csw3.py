@@ -1434,7 +1434,11 @@ class Csw3(object):
 
             # create record_dict from relevant data
             record_dict['id'] = record.identifier
-            record_dict['wkt_geometry'] = computeBbox(record.wkt_geometry)
+            try:
+                record_dict['wkt_geometry'] = computeBbox(record.wkt_geometry)
+            except Exception:
+                # when wkt_geometry is not valid, handle None as wkt_geometry
+                record_dict['wkt_geometry'] = None
             if record.time_begin is None or record.time_end is None:
                 record_dict['time'] = None
             else:
@@ -1442,12 +1446,16 @@ class Csw3(object):
             #try:
             #record_dict['vector'] = ast.literal_eval(record.vector_rep)
             if record.vector_rep:
-                geometry = util.wkt2geom(str(record.vector_rep), False)
-                x, y = geometry.exterior.coords.xy
-                points = []
-                for index, coor in enumerate(x):
-                    points.append([coor, y[index]])
-                record_dict['vector'] = points
+                try:
+                    geometry = util.wkt2geom(str(record.vector_rep), False)
+                    x, y = geometry.exterior.coords.xy
+                    points = []
+                    for index, coor in enumerate(x):
+                        points.append([coor, y[index]])
+                    record_dict['vector'] = points
+                except:
+                    LOGGER.debug("The vector (%s) geometry is not a valid polygon" % (record.vector_rep))
+                    record_dict['vector'] = None
             else:
                 record_dict['vector'] = None
             vector_formats = ["image/tiff"]
