@@ -81,7 +81,7 @@ COPY bin bin/
 COPY setup.py .
 COPY MANIFEST.in .
 COPY VERSION.txt .
-COPY README.rst .
+COPY README.md .
 
 RUN pip3 install .
 
@@ -107,7 +107,6 @@ RUN mkdir /etc/pycsw \
 WORKDIR /home/pycsw
 
 USER pycsw
-
 
 EXPOSE 8000
 
