@@ -108,7 +108,7 @@ WORKDIR /home/pycsw
 
 USER pycsw
 
-COPY db-database /tests/functionaltests/suites/cite/data/cite.db
+COPY db-data /tests/functionaltests/suites/cite/data/cite.db
 
 EXPOSE 8000
 
