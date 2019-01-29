@@ -1438,9 +1438,16 @@ class Csw3(object):
                 record_dict['time'] = None
             else:
                 record_dict['time'] = [record.time_begin, record.time_end]
-            try:
-                record_dict['vector'] = ast.literal_eval(record.vector_rep)
-            except:
+            #try:
+            #record_dict['vector'] = ast.literal_eval(record.vector_rep)
+            if record.vector_rep:
+                geometry = util.wkt2geom(str(record.vector_rep), False)
+                x, y = geometry.exterior.coords.xy
+                points = []
+                for index, coor in enumerate(x):
+                    points.append([coor, y[index]])
+                record_dict['vector'] = points
+            else:
                 record_dict['vector'] = None
             vector_formats = ["image/tiff"]
             if record.format is not None:
@@ -1923,13 +1930,10 @@ class Csw3(object):
                 # get geojson of polygon
                 try:
                     geometry = util.wkt2geom(val, False)
-                    print(type(geometry))
                     x, y = geometry.exterior.coords.xy
-                    print(x,y)
                     points = []
                     for index, coor in enumerate(x):
                         points.append([coor, y[index]])
-                    print("hier")
                     geojson = {
                         "type": "Feature",
                         "geometry": {
