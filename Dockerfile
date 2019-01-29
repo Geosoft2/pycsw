@@ -108,6 +108,8 @@ WORKDIR /home/pycsw
 
 USER pycsw
 
+COPY cite tests/functionaltests/suites/cite/data/
+
 EXPOSE 8000
 
 ENTRYPOINT [\
