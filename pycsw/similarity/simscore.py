@@ -78,6 +78,17 @@ def checkVectorInput(entry):
         return False
     return True
 
+def getBboxFromVector(entry):
+    points=entry["vector"]
+    coords = sorted(points, key = lambda x: x[0])
+    #Latitude
+    minX=coords[0][0]
+    maxX=coords[len(coords)-1][0]
+    coords = sorted(coords, key = lambda x: x[1])
+    #Longitude
+    minY=coords[0][1]
+    maxY=coords[len(coords)-1][1]
+    return [minX,minY,maxX,maxY]
 
 '''
 Converts value in degree to radians
@@ -154,10 +165,19 @@ output:
     center of Bounding Box as 2D point
 '''
 def getCenter(entry):
-    lon1=entry["wkt_geometry"][1]
-    lon2=entry["wkt_geometry"][3]
-    lat1=entry["wkt_geometry"][0]
-    lat2=entry["wkt_geometry"][2]
+
+    if entry["wkt_geometry"] is None:
+        if checkVectorInput(entry):
+            points=getBboxFromVector(entry)
+        else:
+            return 0    
+    else:
+        points=entry["wkt_geometry"]
+
+    lon1=points[1]
+    lon2=points[3]
+    lat1=points[0]
+    lat2=points[2]
 
     lon1, lat1, lon2, lat2 = map(ConvertToRadian, [lon1, lat1, lon2, lat2])
 
@@ -229,11 +249,13 @@ Polygon Area on spherical earth in m²
 '''
 def getPolAr(entry):
     lon, lat = zip(*entry['vector'])
+
+    points=getBboxFromVector(entry)
     
-    minLat=entry['wkt_geometry'][0]
-    maxLat=entry['wkt_geometry'][2]
-    minLon=entry['wkt_geometry'][1]
-    maxLon=entry['wkt_geometry'][3]
+    minLat=points[0]
+    maxLat=points[2]
+    minLon=points[1]
+    maxLon=points[3]
 
     pa = Proj("+proj=aea +lat_1="+str(minLat)+" +lat_2="+str(maxLat)+" +lat_0="+str(minLon)+" +lon_0="+str(maxLon))
     #equal area projection centered on the area of interest
@@ -281,8 +303,6 @@ def moveCoordinates(coordsA, coordsB):
 def getAlignedPolygons(entryA,entryB):
     unAreaA= uniformPolygonArea(entryA)
     unAreaB= uniformPolygonArea(entryB)
-    print("area A: "+str(Polygon(unAreaA).area))
-    print("area B: "+str(Polygon(unAreaB).area))
     return (moveCoordinates(unAreaA,unAreaB))
 
 
@@ -425,7 +445,6 @@ def getShapeSim(entryA, entryB):
     polygonB = Polygon(polygs[1])
     intersec = (polygonA.intersection(polygonB)).area
     sim = intersec/(polygonA.area+(polygonB.area-intersec))
-    print(str(sim))
     return sim 
 
 
@@ -817,7 +836,6 @@ def getExSim(entryA, entryB, geo, tim, cri):
     if cri==3:
         geoSim=0
         if vectorA and vectorB:
-            print("here we go")
             geoSim=getShapeSim(entryA, entryB)
         return geoSim
 
@@ -836,19 +854,19 @@ def getSimScoreTotal(entryA, entryB, geo, tim, ext, dat, loc, mxm, dtl):
     dSim = getIndSim(entryA, entryB, geo, tim, 2)
     if dtl is None or not dtl or not checkVectorInput(entryA) or not checkVectorInput(entryB): 
         lSim = getIndSim(entryA, entryB, geo, tim, 1)
-        print("lSim "+str(lSim))
+        #print("lSim "+str(lSim))
     else: 
         lSim = getExSim(entryA, entryB, geo, tim, 1)
-        print("lSim "+str(lSim))
+        #print("lSim "+str(lSim))
     if dtl is None or not dtl or not checkVectorInput(entryA) or not checkVectorInput(entryB): 
         eSim = getIndSim(entryA, entryB, geo, tim, 0)
-        print("eSim "+str(eSim))
+        #print("eSim "+str(eSim))
     else: 
         eSim = getExSim(entryA, entryB, geo, tim, 0)
-        print("eSim "+str(eSim))
+        #print("eSim "+str(eSim))
     if dtl and checkVectorInput(entryA) and checkVectorInput(entryB) and loc>0 and ext>0 and geo>0:
         sSim = getExSim(entryA, entryB, geo, tim, 3)
-        print("sSim "+str(sSim))
+        #print("sSim "+str(sSim))
         totalSum=ext+dat+loc+((ext+loc)/2)
     else:
         totalSum=ext+dat+loc
@@ -954,6 +972,14 @@ beispiel2 ={
         'raster': False
     }
 
+beispiel2 ={
+        'id': 'urn:uuid:bsp2', 
+        'wkt_geometry': None, 
+        'time': ['2004-01-11T02:28:00Z', '2014-01-11T02:28:00Z'], 
+        'vector': [[52.593038, 7.619019], [52.593038, 9.574585], [51.618017, 9.574585], [51.618017, 7.619019]], 
+        'raster': False
+    }
+
 #################################
 ##### different temp extent #####
 #################################
@@ -1053,7 +1079,7 @@ entriesAll=[ausgang, muenster1t2, Muenster2, Muenster3, Muenster4, australien, M
 entriesBsp=[ausgang, beispiel2]
 
 
-print(getSimilarRecords(entriesBsp, ausgang, 1,1,1,1,1,0,5,True))
+print(getSimilarRecords(entriesBsp, ausgang, 1,1,1,1,1,1,5,True))
 '''
         ent is an entry and therefor the same format
         n : number of similar records to be retrieved
