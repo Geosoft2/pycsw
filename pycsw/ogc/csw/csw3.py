@@ -1399,13 +1399,13 @@ class Csw3(object):
                 return self.exceptionreport('InvalidParameterValue',
                 'detailed', "Parameter value must be either in ['true','True','1'] or in ['false','False','0']") 
         else: 
-            configfield_detailedAlgorithm = metadatasimilarity.get('datailed_algorithm')
+            configfield_detailedAlgorithm = metadatasimilarity.get('detailed_algorithm')
             if configfield_detailedAlgorithm == 'true' or configfield_detailedAlgorithm == 'True' or configfield_detailedAlgorithm == '1':
                     DETAILED_ALGORITHM = True
             elif configfield_detailedAlgorithm == 'false' or configfield_detailedAlgorithm == 'False' or configfield_detailedAlgorithm == '0':
                 DETAILED_ALGORITHM = False
             else:
-                raise Exception("Value of fields 'datailed_algorithm' is not valid")
+                raise Exception("Value of fields 'detailed_algorithm' is not valid")
 
         LOGGER.debug([MAX_NUMBER_RECORDS, WEIGHT_SPATIAL_SIM, WEIGHT_TEMP_SIM, WEIGHT_DATATYPE_SIM, 
         WEIGHT_LOCATION_SIM, WEIGHT_GEOGRAPHIC_SIM, WEIGHT_EXTENT_SIM, DETAILED_ALGORITHM])
