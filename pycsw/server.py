@@ -405,13 +405,23 @@ class Csw(object):
             from pycsw.core import repository
             try:
                 LOGGER.info('Loading default repository')
-                self.repository = repository.Repository(
-                    self.config.get('repository', 'database'),
-                    self.context,
-                    self.environ.get('local.app_root', None),
-                    self.config.get('repository', 'table'),
-                    repo_filter
-                )
+                LOGGER.info(self.environ.get('local.app_root', None))
+                if "site-packages" in self.environ.get('local.app_root', None):
+                    self.repository = repository.Repository(
+                        self.config.get('repository', 'database'),
+                        self.context,
+                        '/home/pycsw/', #self.environ.get('local.app_root', None),
+                        self.config.get('repository', 'table'),
+                        repo_filter
+                    )
+                else:
+                    self.repository = repository.Repository(
+                        self.config.get('repository', 'database'),
+                        self.context,
+                        self.environ.get('local.app_root', None),
+                        self.config.get('repository', 'table'),
+                        repo_filter
+                    )
                 LOGGER.debug(
                     'Repository loaded (local): %s.' % self.repository.dbtype)
             except Exception as err:
