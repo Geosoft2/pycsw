@@ -43,7 +43,8 @@ import pycsw.plugins.outputschemas
 from pycsw.core import config, log, metadata, util
 from pycsw.core.formats.fmt_json import xml2dict
 from pycsw.ogc.fes import fes2
-from pycsw.similarity import simscore
+from pycsw.plugins import simscore
+
 import logging
 import ast
 
@@ -73,13 +74,9 @@ class Csw3(object):
         LOGGER.info('Validating ows20:AcceptFormats')
         LOGGER.debug(self.parent.context.model['operations']['GetCapabilities']['parameters']['acceptFormats']['values'])
         if 'acceptformats' in self.parent.kvp:
-            LOGGER.debug("Selbst")
-            LOGGER.debug("accepted formats in self.parent.kvp")
             bfound = False
             for fmt in self.parent.kvp['acceptformats'].split(','):
                 if fmt in self.parent.context.model['operations']['GetCapabilities']['parameters']['acceptFormats']['values']:
-                    LOGGER.debug("Selbst")
-                    LOGGER.debug(fmt)
                     self.parent.mimetype = fmt
                     bfound = True
                     break
@@ -1082,9 +1079,6 @@ class Csw3(object):
                 for ofmt in self.parent.environ['HTTP_ACCEPT'].split(','):
                     if ofmt in self.parent.context.model['operations']['GetRecords']['parameters']['outputFormat']['values']:
                         self.parent.kvp['outputformat'] = ofmt
-                        LOGGER.debug("Selbst")
-                        LOGGER.debug(self.parent.kvp['outputformat'])
-                        LOGGER.debug(ofmt)
                         break
 
 
@@ -1092,24 +1086,18 @@ class Csw3(object):
             self.parent.kvp['outputformat'] not in
             self.parent.context.model['operations']['GetRecordById']['parameters']
             ['outputFormat']['values']):
-            LOGGER.debug("Selbst")
-            LOGGER.debug("1")
             return self.exceptionreport('InvalidParameterValue',
             'outputformat', 'Invalid outputformat parameter %s' %
             self.parent.kvp['outputformat'])
 
         if ('outputschema' in self.parent.kvp and self.parent.kvp['outputschema'] not in
             self.parent.context.model['operations']['GetRecordById']['parameters']
-            ['outputSchema']['values']):
-            LOGGER.debug("Selbst")
-            LOGGER.debug("2")            
+            ['outputSchema']['values']):        
             return self.exceptionreport('InvalidParameterValue',
             'outputschema', 'Invalid outputschema parameter %s' %
             self.parent.kvp['outputschema'])
 
         if 'outputformat' in self.parent.kvp:
-            LOGGER.debug("Selbst")
-            LOGGER.debug("2")
             self.parent.contenttype = self.parent.kvp['outputformat']
             if self.parent.kvp['outputformat'] == 'application/atom+xml':
                 self.parent.kvp['outputschema'] = self.parent.context.namespaces['atom']
@@ -1175,8 +1163,6 @@ class Csw3(object):
         if len(results) == 0:
             return self.exceptionreport('NotFound', 'id',
             'No repository item found for \'%s\'' % self.parent.kvp['id'])
-        LOGGER.debug("Selbst")
-        LOGGER.debug(node)
         return node
 
     
@@ -1314,12 +1300,12 @@ class Csw3(object):
         LIMIT_SIMILARRECORDS = int(metadatasimilarity.get('limit_for_similarrecords'))
 
         MAX_NUMBER_RECORDS = None
-        WEIGHT_SPATIAL_SIM = None
         WEIGHT_TEMP_SIM = None
         WEIGHT_DATATYPE_SIM = None
         WEIGHT_LOCATION_SIM = None
         WEIGHT_GEOGRAPHIC_SIM = None
         WEIGHT_EXTENT_SIM = None
+        DETAILED_ALGORITHM = None
         '''for each parameter of the similarity function:
             if parameter for the similary function is not changed in the request, take the default value from the config file
             if parameter is changed but in a wrong format, raise an error that is visible for the user
@@ -1336,17 +1322,6 @@ class Csw3(object):
                  'similarRecords', "Parameter value of 'similarrecords' must be integer")
         else:
             MAX_NUMBER_RECORDS = int(metadatasimilarity.get('similarrecords'))
-        if 'spatial_weight' in self.parent.kvp:
-            try:
-                WEIGHT_SPATIAL_SIM = float(self.parent.kvp['spatial_weight'])
-                if WEIGHT_SPATIAL_SIM < weight_min_value or WEIGHT_SPATIAL_SIM > weight_max_value:
-                    return self.exceptionreport('InvalidParameterValue',
-                 'spatial_weight', "Parameter value must be in the range [%s, %s]" % (weight_min_value, weight_max_value)) 
-            except:
-                return self.exceptionreport('InvalidParameterValue',
-                 'spatial_weight', "Parameter value of 'spatial_weight' must be integer or float")
-        else:
-            WEIGHT_SPATIAL_SIM = int(metadatasimilarity.get('spatial_weight'))
         if 'temp_weight' in self.parent.kvp:
             try:
                 WEIGHT_TEMP_SIM = float(self.parent.kvp['temp_weight'])
@@ -1402,9 +1377,26 @@ class Csw3(object):
                  'extent_weight', "Parameter value of 'extent_weight' must be integer or float")
         else: 
             WEIGHT_EXTENT_SIM = int(metadatasimilarity.get('extent_weight'))
+        if 'detailed' in self.parent.kvp:
+            input = self.parent.kvp['detailed']
+            if input == 'true' or input == 'True' or input == '1':
+                DETAILED_ALGORITHM = True
+            elif input == 'false' or input == 'False' or input == '0':
+                DETAILED_ALGORITHM = False
+            else:
+                return self.exceptionreport('InvalidParameterValue',
+                'detailed', "Parameter value must be either in ['true','True','1'] or in ['false','False','0']") 
+        else: 
+            configfield_detailedAlgorithm = metadatasimilarity.get('detailed_algorithm')
+            if configfield_detailedAlgorithm == 'true' or configfield_detailedAlgorithm == 'True' or configfield_detailedAlgorithm == '1':
+                    DETAILED_ALGORITHM = True
+            elif configfield_detailedAlgorithm == 'false' or configfield_detailedAlgorithm == 'False' or configfield_detailedAlgorithm == '0':
+                DETAILED_ALGORITHM = False
+            else:
+                raise Exception("Value of fields 'detailed_algorithm' is not valid")
 
-        LOGGER.debug([MAX_NUMBER_RECORDS, WEIGHT_SPATIAL_SIM, WEIGHT_TEMP_SIM, WEIGHT_DATATYPE_SIM, 
-        WEIGHT_LOCATION_SIM, WEIGHT_GEOGRAPHIC_SIM, WEIGHT_EXTENT_SIM])
+        LOGGER.debug([MAX_NUMBER_RECORDS, WEIGHT_TEMP_SIM, WEIGHT_DATATYPE_SIM, 
+        WEIGHT_LOCATION_SIM, WEIGHT_GEOGRAPHIC_SIM, WEIGHT_EXTENT_SIM, DETAILED_ALGORITHM])
 
         # get all records
         all_records = self.parent.repository.queryWithoutLimit(constraint="")[1]
@@ -1430,14 +1422,29 @@ class Csw3(object):
 
             # create record_dict from relevant data
             record_dict['id'] = record.identifier
-            record_dict['wkt_geometry'] = computeBbox(record.wkt_geometry)
+            try:
+                record_dict['wkt_geometry'] = computeBbox(record.wkt_geometry)
+            except Exception:
+                # when wkt_geometry is not valid, handle None as wkt_geometry
+                record_dict['wkt_geometry'] = None
             if record.time_begin is None or record.time_end is None:
                 record_dict['time'] = None
             else:
                 record_dict['time'] = [record.time_begin, record.time_end]
-            try:
-                record_dict['vector'] = ast.literal_eval(record.vector_rep)
-            except:
+            #try:
+            #record_dict['vector'] = ast.literal_eval(record.vector_rep)
+            if record.vector_rep:
+                try:
+                    geometry = util.wkt2geom(str(record.vector_rep), False)
+                    x, y = geometry.exterior.coords.xy
+                    points = []
+                    for index, coor in enumerate(x):
+                        points.append([coor, y[index]])
+                    record_dict['vector'] = points
+                except:
+                    LOGGER.debug("The vector (%s) geometry is not a valid polygon" % (record.vector_rep))
+                    record_dict['vector'] = None
+            else:
                 record_dict['vector'] = None
             vector_formats = ["image/tiff"]
             if record.format is not None:
@@ -1462,7 +1469,7 @@ class Csw3(object):
             try:
                 # call similarity function from parameters
                 simscores = simscore.getSimilarRecords(records_array, compared_record, MAX_NUMBER_RECORDS, WEIGHT_EXTENT_SIM, WEIGHT_DATATYPE_SIM, 
-                    WEIGHT_LOCATION_SIM, WEIGHT_GEOGRAPHIC_SIM, WEIGHT_TEMP_SIM, weight_max_value)
+                    WEIGHT_LOCATION_SIM, WEIGHT_GEOGRAPHIC_SIM, WEIGHT_TEMP_SIM, weight_max_value, DETAILED_ALGORITHM)
                 LOGGER.debug(simscores)
                 LOGGER.debug(MAX_NUMBER_RECORDS)
                 LOGGER.debug(len(simscores))
@@ -1917,11 +1924,37 @@ class Csw3(object):
                     self.parent.context.namespaces)).text = val
 
                 val = util.getqattr(recobj, queryables['dc:vector_rep']['dbcol'])
-                if val:
-                    #array_of_string = ast.literal_eval(val)
+                # get geojson of polygon
+                try:
+                    #collecting all points of the polygon
+                    geometry = util.wkt2geom(val, False)
+                    x, y = geometry.exterior.coords.xy
+                    points = []
+                    for index, coor in enumerate(x):
+                        points.append([coor, y[index]])
+                    # geospatial data encoded in geojson
+                    geojson = {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Polygon",
+                            "coordinates": [
+                                points
+                            ]
+                        },
+                        "properties": {
+                            "@crs": "http://www.opengis.net/def/crs/EPSG/0/4326",
+                            "@dimensions": "2"
+                        }
+                    }
+                    # encoded as a string that contains geojson as arrays cannot be saves properly in an XML file
                     etree.SubElement(record,
                     util.nspath_eval('dc:vector_rep',
-                    self.parent.context.namespaces)).text = val
+                    self.parent.context.namespaces)).text = str(geojson)
+                except Exception as e:
+                    # when geometry could not be built (e.g. when database field is None),
+                    # do not view the vector_rep in teh CSW
+                    pass
+                    
                 
                 val = util.getqattr(recobj, queryables['dc:time_begin']['dbcol'])
                 if val:
@@ -1989,8 +2022,6 @@ class Csw3(object):
 
             #Vector Representation
             vectorRepresentation = util.getqattr(record, self.parent.context.md_core_model['mappings']['pycsw:VectorRepresentation'])
-            LOGGER.debug("Selbst")
-            LOGGER.debug(vectorRepresentation)
             if vectorRepresentation:
                 etree.SubElement(record, util.nspath_eval('dc:VectorRepresentation', self.parent.context.namespaces)).text = vectorRepresentation
 
@@ -2248,8 +2279,6 @@ class Csw3(object):
             else self.parent.context.namespaces['csw30']
 
             tmp = doc.find('.').attrib.get('outputFormat')
-            LOGGER.debug("Selbst")
-            LOGGER.debug(tmp)
             if tmp is not None:
                 request['outputformat'] = tmp
 
@@ -2533,15 +2562,26 @@ def write_boundingbox(bbox, nsmap):
             return None
 
         if len(bbox2) == 4:
-            boundingbox = etree.Element(util.nspath_eval('ows20:BoundingBox',
-            nsmap), crs='http://www.opengis.net/def/crs/EPSG/0/4326',
-            dimensions='2')
+            boundingbox = etree.Element(util.nspath_eval('dc:BoundingBox',
+            nsmap))
 
-            etree.SubElement(boundingbox, util.nspath_eval('ows20:LowerCorner',
-            nsmap)).text = '%s %s' % (bbox2[1], bbox2[0])
+            # geospatial data encoded in geojson
+            geojsonbbox = geojson = {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Polygon",
+                            "coordinates": [
+                                [[bbox2[1], bbox2[0]], [bbox2[3], bbox2[2]]]
+                            ]
+                        },
+                        "properties": {
+                            "@crs": "http://www.opengis.net/def/crs/EPSG/0/4326",
+                            "@dimensions": "2"
+                        }
+                    }
 
-            etree.SubElement(boundingbox, util.nspath_eval('ows20:UpperCorner',
-            nsmap)).text = '%s %s' % (bbox2[3], bbox2[2])
+            # encoded as a string that contains geojson as arrays cannot be saves properly in an XML file
+            boundingbox.text = str(geojsonbbox)
 
             return boundingbox
         else:
