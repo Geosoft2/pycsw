@@ -64,6 +64,16 @@ react to the following parameters:
   - extent\_weight <sup>[1](#footnote1)</sup> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; how relevant shall the extent factor be in the
     similarity calculation
     
+
+### API Test Suite
+
+For running the API Test Suite there mus be a connection to //localhost:8000/.
+Then navigate to the Folder the Test-Suite file is lying in:
+(already in folder pycsw)
+``` sourceCode python
+cd tests/functionaltests/suites
+python3 test_APITestSuiteGET.py```
+
 <a name = "footnote1"> 1 </a> The range of the weights can be definded in the [preferences.cfg-file](https://github.com/KathHv/pycsw/blob/master/preferences.cfg>) as well through the 'max_value_for_weight' variable (right boundry).
     the default weight for each weight can be set in this file as well  
 <a name = "footnote2"> 2 </a>  the limit for this parameter can be set in the [preferences.cfg-file](https://github.com/KathHv/pycsw/blob/master/preferences.cfg) through the parameter 'limit_for_similarrecords'.

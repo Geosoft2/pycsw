@@ -1469,7 +1469,11 @@ class Csw3(object):
             try:
                 # call similarity function from parameters
                 simscores = simscore.getSimilarRecords(records_array, compared_record, MAX_NUMBER_RECORDS, WEIGHT_EXTENT_SIM, WEIGHT_DATATYPE_SIM, 
+<<<<<<< Updated upstream
                     WEIGHT_LOCATION_SIM, WEIGHT_GEOGRAPHIC_SIM, WEIGHT_TEMP_SIM, weight_max_value, DETAILED_ALGORITHM)
+=======
+                    WEIGHT_LOCATION_SIM, WEIGHT_GEOGRAPHIC_SIM, WEIGHT_TEMP_SIM, weight_max_value,True)
+>>>>>>> Stashed changes
                 LOGGER.debug(simscores)
                 LOGGER.debug(MAX_NUMBER_RECORDS)
                 LOGGER.debug(len(simscores))
