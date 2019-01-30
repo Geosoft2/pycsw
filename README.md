@@ -42,6 +42,12 @@ Run in pycsw folder:
 python3 pycsw/wsgi.py
 ```
 
+## Run in Docker
+Install Docker on device. For installing instructions see this [link](https://docs.docker.com/install/linux/docker-ce/ubuntu/)
+
+``` docker run -p 8000:8000 donkeykh/geopycsw```
+
+
 ### What is new in our pycsw version?
 We enhanced pycsw with two similarity functions that include metadata
 fields of the records like the wkt\_geometry, the temporal extent, the
@@ -74,6 +80,6 @@ Then navigate to the Folder the Test-Suite file is lying in:
 cd tests/functionaltests/suites
 python3 test_APITestSuiteGET.py```
 
-<a name = "footnote1"> 1 </a> The range of the weights can be definded in the [preferences.cfg-file](https://github.com/KathHv/pycsw/blob/master/preferences.cfg>) as well through the 'max_value_for_weight' variable (right boundry).
+<a name = "footnote1"> 1 </a> The range of the weights can be definded in the [preferences.cfg-file](https://github.com/KathHv/pycsw/blob/master/preferences.cfg) as well through the 'max_value_for_weight' variable (right boundry).
     the default weight for each weight can be set in this file as well  
 <a name = "footnote2"> 2 </a>  the limit for this parameter can be set in the [preferences.cfg-file](https://github.com/KathHv/pycsw/blob/master/preferences.cfg) through the parameter 'limit_for_similarrecords'.
