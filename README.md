@@ -26,7 +26,7 @@ Please read the docs at <http://pycsw.org/docs> for more information.
 
 ``` sourceCode python
 git clone https://github.com/KathHv/pycsw.git && cd pycsw
-pip install -e . && pip install -r requirements-standalone.txt
+pip3 install -e . && pip3 install -r requirements-standalone.txt
 ```
 
 ### Configuration for Server-Admin
@@ -59,9 +59,7 @@ react to the following parameters:
 
   - id (required)
   - all parameter that are included in the 'getRecordById'-request
-  - maxrecords <sup>[2](#footnote2)</sup>  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  max number of shown similar records
-  - spatial\_weight <sup>[1](#footnote1)</sup>  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  how relevant shall the spatial factor be in
-    the similarity calculation
+  - similarrecords <sup>[2](#footnote2)</sup>  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  max number of shown similar records
   - temp\_weight <sup>[1](#footnote1)</sup>  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;how relevant shall the temporal factor be in the
     similarity calculation
   - datatype\_weight <sup>[1](#footnote1)</sup> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;how relevant shall the similarity of

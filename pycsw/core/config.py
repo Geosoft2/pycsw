@@ -178,7 +178,7 @@ class StaticContext(object):
             'csw': {
                 'operations_order': [
                     'GetCapabilities', 'DescribeRecord', 'GetDomain',
-                    'GetRecords', 'GetRecordById', 'GetRepositoryItem'
+                    'GetRecords', 'GetRecordById', 'GetRepositoryItem', 'GetSimilarRecords'
                 ],
                 'operations': {
                     'GetCapabilities': {
@@ -364,7 +364,7 @@ class StaticContext(object):
             'csw30': {
                 'operations_order': [
                     'GetCapabilities', 'GetDomain', 'GetRecords',
-                    'GetRecordById', 'GetRepositoryItem'
+                    'GetRecordById', 'GetRepositoryItem', 'GetSimilarRecords'
                 ],
                 'operations': {
                     'GetCapabilities': {
@@ -438,6 +438,9 @@ class StaticContext(object):
                             },
                             'outputFormat': {
                                 'values': ['application/xml', 'application/json', 'application/atom+xml']
+                            },
+                            'detailed_algorithm': {
+                                'values': ['0', 'False', 'false', '1', 'True', 'true']
                             },
                             'ElementSetName': {
                                 'values': ['brief', 'summary', 'full']
