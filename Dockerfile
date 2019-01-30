@@ -108,6 +108,8 @@ WORKDIR /home/pycsw
 
 USER pycsw
 
+COPY db-data db-data/
+
 EXPOSE 8000
 
 ENTRYPOINT [\
