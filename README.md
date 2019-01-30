@@ -73,7 +73,7 @@ react to the following parameters:
 
 ### API Test Suite
 
-For running the API Test Suite there mus be a connection to //localhost:8000/.
+For running the API Test Suite there must be a connection to //localhost:8000/.
 Then navigate to the Folder the Test-Suite file is lying in:
 (already in folder pycsw)
 ``` sourceCode python
