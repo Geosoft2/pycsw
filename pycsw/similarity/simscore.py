@@ -260,6 +260,17 @@ def getAr(points):
         return 0
     return getArea(points)
 
+'''
+copy array
+'''
+def newCoords(points):
+    coords=[]
+    i=0
+    for x in points:
+        y=x.copy()
+        coords.insert(i, y)
+        i=i+1
+    return coords
 
 
 '''
@@ -270,7 +281,8 @@ output:
     area of polygon on earth in m² (calculated via equal area projection)
 '''
 def getPolAr(entry):
-    lon, lat = zip(*entry['vector'])
+    coords=entry['vector']
+    lon, lat = zip(*coords)
 
     points=getBboxFromVector(entry)
     
@@ -309,15 +321,15 @@ output:
     coordinates of normalized polygon
 
 '''
-def uniformPolygonArea(entry):
+def uniformPolygonArea(coords):
+    points=coords.copy()
     norm = 1000
-    eArea = (Polygon(entry["vector"])).area
+    eArea = (Polygon(points)).area
     fac = math.sqrt(norm/eArea)
-    coords = entry["vector"]
-    for i in coords:
+    for i in points:
         i[0]=i[0]*fac
         i[1]=i[1]*fac
-    return coords
+    return points
 
 
 
@@ -343,9 +355,9 @@ def moveCoordinates(coordsA, coordsB):
 '''
 Combines relocation and normalization to align polygons
 '''
-def getAlignedPolygons(entryA,entryB):
-    unAreaA= uniformPolygonArea(entryA)
-    unAreaB= uniformPolygonArea(entryB)
+def getAlignedPolygons(coordsA,coordsB):
+    unAreaA= uniformPolygonArea(coordsA)
+    unAreaB= uniformPolygonArea(coordsB)
     return (moveCoordinates(unAreaA,unAreaB))
 
 
@@ -416,11 +428,12 @@ input:
     entryA, entryB : records from repository which are to be compared
 output:
     similarityscore (in [0,1])
-TODO: implement more specific calc
 '''
 def getGeoExtSimE(entryA, entryB):
     areaA=getPolAr(entryA)
     areaB=getPolAr(entryB)
+
+
     minV = min(areaA, areaB)
     maxV = max(areaA, areaB)
     if maxV == 0:
@@ -484,13 +497,20 @@ output:
     similarityscore (in [0,1])
 '''
 def getShapeSim(entryA, entryB):
+    
     #both are lines
     if not hasArea(entryA) and not hasArea(entryB):
         return 1
     #one line, one polygon
     if not hasArea(entryA) or not hasArea(entryB):
         return 0
-    polygs = getAlignedPolygons(entryA,entryB)
+    
+    pointsA=entryA['vector']
+    pointsB=entryB['vector']
+    pa=newCoords(pointsA)
+
+    polygs = getAlignedPolygons(pa,pointsB)
+
     polygonA = Polygon(polygs[0])
     polygonB = Polygon(polygs[1])
     intersec = (polygonA.intersection(polygonB)).area
@@ -875,7 +895,6 @@ def getExSim(entryA, entryB, geo, tim, cri):
         tempInter = 0
         geoLoc = 0
         tempLoc = 0
-
         if vectorA and vectorB:
             geoInter = getInterGeoSimE(entryA,entryB)
             geoLoc = getCenterGeoSim(entryA,entryB)
@@ -887,14 +906,12 @@ def getExSim(entryA, entryB, geo, tim, cri):
             tempLoc = getCenterTempSim(entryA,entryB)
         geoSim = 0.4*geoInter + 0.6*geoLoc
         tempSim = 0.4*tempInter + 0.6*tempLoc
-
     # Shape
     if cri==3:
         geoSim=0
         if vectorA and vectorB:
             geoSim=getShapeSim(entryA, entryB)
         return geoSim
-
     rel = geo/(geo+tim)
     sim = rel*geoSim + (1-rel)*tempSim
     return sim 
@@ -1028,4 +1045,3 @@ def getSimilarRecords(entries, ent, n, ext, dat, loc, geo, tim, mxm, dtl):
     output=sorted(records, key= lambda x: x[1], reverse=True)
 
     return output
-

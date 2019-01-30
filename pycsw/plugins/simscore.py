@@ -10,7 +10,9 @@ from pyproj import Proj
 '''
 @author: Carolin Wortmann
 
-
+Main function to be used:
+    getSimilarRecords   to obtain specified number of similar records given a list of records and a specific records 
+                        to cmompare to
 
 Help functions:
 
@@ -25,6 +27,10 @@ Help functions:
     getCenter:          calculates center of bounding box
 
     getAr/getAres:      calculates area of bouunding box on earth surface
+
+    check...input:      checks input metadata
+
+    getBboxFromVector:  returns coordinates from bounding box calculated from vector data
 
 '''
 '''Validitiy Check
@@ -60,7 +66,15 @@ def checkValidity(entries, ent, n, ext, dat, loc, geo, tim, mxm, dtl):
         raise ValueError('invalid parameters, must be within 0 and mxm, geo and tim cannot both be 0')
     return 
 
+'''
+check...input
+input:
+    metadata entry to be checked
+output:
+    True, if input is valid and not None
+    False, else
 
+'''
 
 def checkTempInput(entry):
     if entry["time"] is None or entry["time"][0] is None or entry["time"][0]==0 or entry["time"][1] is None or entry["time"][1]==0:
@@ -78,6 +92,14 @@ def checkVectorInput(entry):
         return False
     return True
 
+'''
+calculates bounding box coordinates from vector coordinates
+input:
+    entry including vector data
+output:
+    4 element list with min/max latitude/longitude
+
+'''
 def getBboxFromVector(entry):
     points=entry["vector"]
     coords = sorted(points, key = lambda x: x[0])
@@ -99,9 +121,6 @@ def ConvertToRadian(input):
     return float(input) * math.pi/ 180
 
 
-#Calculates diagonal of Bounding Box by use of Haversine Formula
-
-
 ''' Calculation of diagonal length
     Calculates length of bounding box for entry
     input: 
@@ -116,6 +135,7 @@ def getDiagonal(entry):
     lat1 = entry["wkt_geometry"][0]
 
     return gDiag(lat1,lat2,lon1,lon2)
+
 
 ''' Calculate Diagonal - inner function
 Calculates length of line between two points
@@ -158,7 +178,8 @@ def getInterv(entry):
     tdelta = datetime.datetime.strptime(t2, frmt) - datetime.datetime.strptime(t1, frmt)
     return tdelta
 
-'''Calculate center of bbox
+
+'''Calculation of center of bounding box
 input:
     entry : repository record 
 output:
@@ -194,18 +215,15 @@ def getCenter(entry):
 
 
 '''
-
+calculates center of unprojected polygon for shape similarity
+input:
+    coordinate points in list
+output:
+    center coordinates in list
 '''
 def getPolygCenter(coord):
-    #lon, lat = zip(*entry['vector'])
-    
-    #pa = Proj("+proj=aea +lat_1=37.0 +lat_2=41.0 +lat_0=39.0 +lon_0=-106.55")
-    #equal area projection centered on and bracketing the area of interest
-    #x, y = pa(lon, lat)
-    #pol = {"type": "Polygon", "coordinates": [zip(x, y)]}
     pol=Polygon(coord)
     return list(pol.centroid.coords)
-
 
 
 
@@ -242,13 +260,29 @@ def getAr(points):
         return 0
     return getArea(points)
 
+'''
+copy array
+'''
+def newCoords(points):
+    coords=[]
+    i=0
+    for x in points:
+        y=x.copy()
+        coords.insert(i, y)
+        i=i+1
+    return coords
 
 
 '''
-Polygon Area on spherical earth in m²
+Polygon Area on spherical earth 
+input:
+    metadata entry as dict
+output:
+    area of polygon on earth in m² (calculated via equal area projection)
 '''
 def getPolAr(entry):
-    lon, lat = zip(*entry['vector'])
+    coords=entry['vector']
+    lon, lat = zip(*coords)
 
     points=getBboxFromVector(entry)
     
@@ -257,13 +291,22 @@ def getPolAr(entry):
     minLon=points[1]
     maxLon=points[3]
 
-    pa = Proj("+proj=aea +lat_1="+str(minLat)+" +lat_2="+str(maxLat)+" +lat_0="+str(minLon)+" +lon_0="+str(maxLon))
     #equal area projection centered on the area of interest
+    pa = Proj("+proj=aea +lat_1="+str(minLat)+" +lat_2="+str(maxLat)+" +lat_0="+str(minLon)+" +lon_0="+str(maxLon))
+
     x, y = pa(lon, lat)
     pol = {"type": "Polygon", "coordinates": [zip(x, y)]}
     return shape(pol).area 
 
 
+'''
+Check if polygon created from vector points has area
+input:
+    metadata entry to be checked
+output:
+    True, if vector is polygon and thus has area
+    False, if vector is point or line
+'''
 def hasArea(entry):
     if getPolAr(entry)==0:
         return False
@@ -271,24 +314,33 @@ def hasArea(entry):
 
 
 '''
-Align Polygons by normalizing their sizes and moving polygonB on top of polygonA
+Normalize Polygons to size of 1000m²
+input:
+    metadata entry
+output:
+    coordinates of normalized polygon
 
 '''
-
-
-def uniformPolygonArea(entry):
+def uniformPolygonArea(coords):
+    points=coords.copy()
     norm = 1000
-    eArea = (Polygon(entry["vector"])).area
+    eArea = (Polygon(points)).area
     fac = math.sqrt(norm/eArea)
-    coords = entry["vector"]
-    for i in coords:
+    for i in points:
         i[0]=i[0]*fac
         i[1]=i[1]*fac
-    return coords
+    return points
 
 
 
-
+'''
+Align Polygons
+input: 
+    two lists representing polygon normalized points from entry A and entry B
+output:
+    two lists representing normalized coordinate points from entry A and relocated (to be algined to entry A) 
+    normalized coordinate points from entry B 
+'''
 def moveCoordinates(coordsA, coordsB):
     ctrA=getPolygCenter(coordsA)
     ctrB=getPolygCenter(coordsB)
@@ -300,13 +352,13 @@ def moveCoordinates(coordsA, coordsB):
     return[coordsA,coordsB]
 
 
-def getAlignedPolygons(entryA,entryB):
-    unAreaA= uniformPolygonArea(entryA)
-    unAreaB= uniformPolygonArea(entryB)
+'''
+Combines relocation and normalization to align polygons
+'''
+def getAlignedPolygons(coordsA,coordsB):
+    unAreaA= uniformPolygonArea(coordsA)
+    unAreaB= uniformPolygonArea(coordsB)
     return (moveCoordinates(unAreaA,unAreaB))
-
-
-
 
 
 '''Points within limits of Bounding Box?
@@ -376,11 +428,12 @@ input:
     entryA, entryB : records from repository which are to be compared
 output:
     similarityscore (in [0,1])
-TODO: implement more specific calc
 '''
 def getGeoExtSimE(entryA, entryB):
     areaA=getPolAr(entryA)
     areaB=getPolAr(entryB)
+
+
     minV = min(areaA, areaB)
     maxV = max(areaA, areaB)
     if maxV == 0:
@@ -426,21 +479,38 @@ Location Similarity
         getCentGeoSim:          calculates difference between centers of bounding boxes of two entries, given as dicts, and calculates ratio to absolute maximum (half the earth's circumference)        
 
         getCentTempSim:         calculates difference between centers of temporal intervals of two entries, given as dicts, and calculates ratio to absolute max (to be determined)
+    
+    Shape Similarity (detailled algorithm only)
 
+        getShapeSim:            calculates difference in area of aligned polygons
 '''
 
 #####################################################################
 ####### Shape comparison ############################################
 #####################################################################
 
+'''Similarity of Polygons
+Calculates similarity based on overlap of aligned normalized polygons
+input: 
+    entryA, entryB : records from repository which are to be compared
+output:
+    similarityscore (in [0,1])
+'''
 def getShapeSim(entryA, entryB):
+    
     #both are lines
     if not hasArea(entryA) and not hasArea(entryB):
         return 1
     #one line, one polygon
     if not hasArea(entryA) or not hasArea(entryB):
         return 0
-    polygs = getAlignedPolygons(entryA,entryB)
+    
+    pointsA=entryA['vector']
+    pointsB=entryB['vector']
+    pa=newCoords(pointsA)
+
+    polygs = getAlignedPolygons(pa,pointsB)
+
     polygonA = Polygon(polygs[0])
     polygonB = Polygon(polygs[1])
     intersec = (polygonA.intersection(polygonB)).area
@@ -470,6 +540,14 @@ def getCenterGeoSim(entryA, entryB):
     return sim
 
 
+'''Similarity of geographic location based on centers
+Calulates similarity based on geographic location of centers of bounding boxes
+input: 
+    entryA, entryB : records from repository which are to be compared
+output:
+    similarityscore (in [0,1])
+
+'''
 def getCenterTempSim(entryA, entryB):
     if getInterv(entryA["time"]) is None or getInterv(entryB["time"]) is None:
         return 0
@@ -608,8 +686,6 @@ input:
     entryA,entryB : records from repository which are to be compares
 output: 
     similarityscore (in[0,1]) 
-
-TODO: implement exact calculation
 '''
 
 # Calculate intersection area of both bounding boxes 
@@ -819,7 +895,6 @@ def getExSim(entryA, entryB, geo, tim, cri):
         tempInter = 0
         geoLoc = 0
         tempLoc = 0
-
         if vectorA and vectorB:
             geoInter = getInterGeoSimE(entryA,entryB)
             geoLoc = getCenterGeoSim(entryA,entryB)
@@ -831,21 +906,42 @@ def getExSim(entryA, entryB, geo, tim, cri):
             tempLoc = getCenterTempSim(entryA,entryB)
         geoSim = 0.4*geoInter + 0.6*geoLoc
         tempSim = 0.4*tempInter + 0.6*tempLoc
-
     # Shape
     if cri==3:
         geoSim=0
         if vectorA and vectorB:
             geoSim=getShapeSim(entryA, entryB)
         return geoSim
-
     rel = geo/(geo+tim)
     sim = rel*geoSim + (1-rel)*tempSim
     return sim 
 
 
+''' Calculate SimScore based on parameters
+Calculates similarity score between two entries based on parameters 
+input:  entries: Expects a list of entries (dictionaries), where each dict represents one entry of the repository.
 
+        entry:      {
+                                "id" : idOfTheEntry,
+                                "wkt_geometry" : [minLat, minLon, maxLat, maxLon],
+                                "vector" : [[lat,long],[lat,long]...],
+                                "time" : [start, end],
+                                "raster"  : bool
+                            }   
 
+        ent is an entry and therefor the same format
+        n : number of similar records to be retrieved
+        ext : weight of extent similarity 
+        dat : weight of datatype similarity 
+        loc : weight of location similarity
+        geo : weight geographic similarity
+        tim : weight temporal similarity
+        max : max value for weights
+        dtl : boolean, true if detailed
+
+outpus:
+        SimScore([0,1[)
+'''
 
 def getSimScoreTotal(entryA, entryB, geo, tim, ext, dat, loc, mxm, dtl):
 
@@ -888,7 +984,9 @@ def getSimScoreTotal(entryA, entryB, geo, tim, ext, dat, loc, mxm, dtl):
 
 
 '''
-getSimilarityScore: Berechnet den SimilarityScore
+getSimilarityScore: Calculates SimilarityScore of all entries including check of parameters
+Collects n entries using O(nlogn) method of Heapsort/Priority Queue
+input:
         entries: Expects a list of entries (dictionaries), where each dict represents one entry of the repository.
 
                 entry:      {
@@ -908,6 +1006,9 @@ getSimilarityScore: Berechnet den SimilarityScore
         tim : weight temporal similarity
         max : max value for weights
         dtl : boolean, true if detailed
+
+output:
+        list inclduing ids and similarity scores for n most similar entries
 '''
 
 def getSimilarRecords(entries, ent, n, ext, dat, loc, geo, tim, mxm, dtl):
