@@ -10,7 +10,9 @@ from pyproj import Proj
 '''
 @author: Carolin Wortmann
 
-
+Main function to be used:
+    getSimilarRecords   to obtain specified number of similar records given a list of records and a specific records 
+                        to cmompare to
 
 Help functions:
 
@@ -25,6 +27,10 @@ Help functions:
     getCenter:          calculates center of bounding box
 
     getAr/getAres:      calculates area of bouunding box on earth surface
+
+    check...input:      checks input metadata
+
+    getBboxFromVector:  returns coordinates from bounding box calculated from vector data
 
 '''
 '''Validitiy Check
@@ -60,7 +66,15 @@ def checkValidity(entries, ent, n, ext, dat, loc, geo, tim, mxm, dtl):
         raise ValueError('invalid parameters, must be within 0 and mxm, geo and tim cannot both be 0')
     return 
 
+'''
+check...input
+input:
+    metadata entry to be checked
+output:
+    True, if input is valid and not None
+    False, else
 
+'''
 
 def checkTempInput(entry):
     if entry["time"] is None or entry["time"][0] is None or entry["time"][0]==0 or entry["time"][1] is None or entry["time"][1]==0:
@@ -78,6 +92,25 @@ def checkVectorInput(entry):
         return False
     return True
 
+'''
+calculates bounding box coordinates from vector coordinates
+input:
+    entry including vector data
+output:
+    4 element list with min/max latitude/longitude
+
+'''
+def getBboxFromVector(entry):
+    points=entry["vector"]
+    coords = sorted(points, key = lambda x: x[0])
+    #Latitude
+    minX=coords[0][0]
+    maxX=coords[len(coords)-1][0]
+    coords = sorted(coords, key = lambda x: x[1])
+    #Longitude
+    minY=coords[0][1]
+    maxY=coords[len(coords)-1][1]
+    return [minX,minY,maxX,maxY]
 
 '''
 Converts value in degree to radians
@@ -86,9 +119,6 @@ Converts value in degree to radians
 '''
 def ConvertToRadian(input):
     return float(input) * math.pi/ 180
-
-
-#Calculates diagonal of Bounding Box by use of Haversine Formula
 
 
 ''' Calculation of diagonal length
@@ -105,6 +135,7 @@ def getDiagonal(entry):
     lat1 = entry["wkt_geometry"][0]
 
     return gDiag(lat1,lat2,lon1,lon2)
+
 
 ''' Calculate Diagonal - inner function
 Calculates length of line between two points
@@ -147,17 +178,27 @@ def getInterv(entry):
     tdelta = datetime.datetime.strptime(t2, frmt) - datetime.datetime.strptime(t1, frmt)
     return tdelta
 
-'''Calculate center of bbox
+
+'''Calculation of center of bounding box
 input:
     entry : repository record 
 output:
     center of Bounding Box as 2D point
 '''
 def getCenter(entry):
-    lon1=entry["wkt_geometry"][1]
-    lon2=entry["wkt_geometry"][3]
-    lat1=entry["wkt_geometry"][0]
-    lat2=entry["wkt_geometry"][2]
+
+    if entry["wkt_geometry"] is None:
+        if checkVectorInput(entry):
+            points=getBboxFromVector(entry)
+        else:
+            return 0    
+    else:
+        points=entry["wkt_geometry"]
+
+    lon1=points[1]
+    lon2=points[3]
+    lat1=points[0]
+    lat2=points[2]
 
     lon1, lat1, lon2, lat2 = map(ConvertToRadian, [lon1, lat1, lon2, lat2])
 
@@ -174,18 +215,15 @@ def getCenter(entry):
 
 
 '''
-
+calculates center of unprojected polygon for shape similarity
+input:
+    coordinate points in list
+output:
+    center coordinates in list
 '''
 def getPolygCenter(coord):
-    #lon, lat = zip(*entry['vector'])
-    
-    #pa = Proj("+proj=aea +lat_1=37.0 +lat_2=41.0 +lat_0=39.0 +lon_0=-106.55")
-    #equal area projection centered on and bracketing the area of interest
-    #x, y = pa(lon, lat)
-    #pol = {"type": "Polygon", "coordinates": [zip(x, y)]}
     pol=Polygon(coord)
     return list(pol.centroid.coords)
-
 
 
 
@@ -225,50 +263,72 @@ def getAr(points):
 
 
 '''
-Polygon Area in m²
+Polygon Area on spherical earth 
+input:
+    metadata entry as dict
+output:
+    area of polygon on earth in m² (calculated via equal area projection)
 '''
 def getPolAr(entry):
     lon, lat = zip(*entry['vector'])
-    
-    minLat=entry['wkt_geometry'][0]
-    maxLat=entry['wkt_geometry'][2]
-    minLon=entry['wkt_geometry'][1]
-    maxLon=entry['wkt_geometry'][3]
 
-    pa = Proj("+proj=aea +lat_1="+str(minLat)+" +lat_2="+str(maxLat)+" +lat_0="+str(minLon)+" +lon_0="+str(maxLon))
+    points=getBboxFromVector(entry)
+    
+    minLat=points[0]
+    maxLat=points[2]
+    minLon=points[1]
+    maxLon=points[3]
+
     #equal area projection centered on the area of interest
+    pa = Proj("+proj=aea +lat_1="+str(minLat)+" +lat_2="+str(maxLat)+" +lat_0="+str(minLon)+" +lon_0="+str(maxLon))
+
     x, y = pa(lon, lat)
     pol = {"type": "Polygon", "coordinates": [zip(x, y)]}
     return shape(pol).area 
 
 
+'''
+Check if polygon created from vector points has area
+input:
+    metadata entry to be checked
+output:
+    True, if vector is polygon and thus has area
+    False, if vector is point or line
+'''
 def hasArea(entry):
     if getPolAr(entry)==0:
-        print(str(getPolAr(entry)))
         return False
     return True
 
 
 '''
-Align Polygons by normalizing their sizes and moving polygonB on top of polygonA
+Normalize Polygons to size of 1000m²
+input:
+    metadata entry
+output:
+    coordinates of normalized polygon
 
 '''
-
-
 def uniformPolygonArea(entry):
     norm = 1000
-    eArea = getPolAr(entry)
+    eArea = (Polygon(entry["vector"])).area
     fac = math.sqrt(norm/eArea)
     coords = entry["vector"]
     for i in coords:
-        for j in i:
-            j=j*fac
-    #coords = map(lambda x: fac*x, entry["vector"])
+        i[0]=i[0]*fac
+        i[1]=i[1]*fac
     return coords
 
 
 
-
+'''
+Align Polygons
+input: 
+    two lists representing polygon normalized points from entry A and entry B
+output:
+    two lists representing normalized coordinate points from entry A and relocated (to be algined to entry A) 
+    normalized coordinate points from entry B 
+'''
 def moveCoordinates(coordsA, coordsB):
     ctrA=getPolygCenter(coordsA)
     ctrB=getPolygCenter(coordsB)
@@ -280,13 +340,13 @@ def moveCoordinates(coordsA, coordsB):
     return[coordsA,coordsB]
 
 
+'''
+Combines relocation and normalization to align polygons
+'''
 def getAlignedPolygons(entryA,entryB):
     unAreaA= uniformPolygonArea(entryA)
     unAreaB= uniformPolygonArea(entryB)
     return (moveCoordinates(unAreaA,unAreaB))
-
-
-
 
 
 '''Points within limits of Bounding Box?
@@ -406,20 +466,29 @@ Location Similarity
         getCentGeoSim:          calculates difference between centers of bounding boxes of two entries, given as dicts, and calculates ratio to absolute maximum (half the earth's circumference)        
 
         getCentTempSim:         calculates difference between centers of temporal intervals of two entries, given as dicts, and calculates ratio to absolute max (to be determined)
+    
+    Shape Similarity (detailled algorithm only)
 
+        getShapeSim:            calculates difference in area of aligned polygons
 '''
 
 #####################################################################
 ####### Shape comparison ############################################
 #####################################################################
 
+'''Similarity of Polygons
+Calculates similarity based on overlap of aligned normalized polygons
+input: 
+    entryA, entryB : records from repository which are to be compared
+output:
+    similarityscore (in [0,1])
+'''
 def getShapeSim(entryA, entryB):
     #both are lines
     if not hasArea(entryA) and not hasArea(entryB):
         return 1
     #one line, one polygon
     if not hasArea(entryA) or not hasArea(entryB):
-        print(str(entryB['id'])+" has no area")
         return 0
     polygs = getAlignedPolygons(entryA,entryB)
     polygonA = Polygon(polygs[0])
@@ -451,26 +520,34 @@ def getCenterGeoSim(entryA, entryB):
     return sim
 
 
+'''Similarity of geographic location based on centers
+Calulates similarity based on geographic location of centers of bounding boxes
+input: 
+    entryA, entryB : records from repository which are to be compared
+output:
+    similarityscore (in [0,1])
+
+'''
 def getCenterTempSim(entryA, entryB):
-    if getInterv(entryA["time"])==0 or getInterv(entryB["time"])==0:
+    if getInterv(entryA["time"]) is None or getInterv(entryB["time"]) is None:
         return 0
 
     frmt = "%Y-%m-%dT%H:%M:%SZ" 
-    if entryA["time"][0]==entryA["time"][1]:
-        centerA=entryA["time"][0]
+    if getInterv(entryA["time"]).total_seconds()==0:
+        centerA=datetime.datetime.strptime(entryA["time"][0],frmt)
     else: 
         centerA=datetime.datetime.strptime(entryA["time"][0],frmt)+(getInterv(entryA["time"])/2)
-    if entryB["time"][0]==entryB["time"][1]:
-        centerB=entryB["time"][0]
+    if getInterv(entryB["time"]).total_seconds()==0:
+        centerB=datetime.datetime.strptime(entryB["time"][0],frmt)
     else: 
         centerB=datetime.datetime.strptime(entryB["time"][0],frmt)+(getInterv(entryB["time"])/2)
 
     tdelta = centerA-centerB
     tdelta = tdelta.total_seconds()
-
+    
     max = datetime.timedelta(days=365000).total_seconds()
 
-    return tdelta/max
+    return 1-(tdelta/max)
 
 
 #########################################################################
@@ -589,8 +666,6 @@ input:
     entryA,entryB : records from repository which are to be compares
 output: 
     similarityscore (in[0,1]) 
-
-TODO: implement exact calculation
 '''
 
 # Calculate intersection area of both bounding boxes 
@@ -612,7 +687,7 @@ output:
 '''
 def getInterTempSim(entryA,entryB):
     frmt = "%Y-%m-%dT%H:%M:%SZ" 
-    if getInterv(entryA["time"])==0 or getInterv(entryB["time"])==0:
+    if getInterv(entryA["time"]).total_seconds()==0 or getInterv(entryB["time"]).total_seconds()==0:
         return 0
     interv=float(0)
     #starting points of intervals A, B
@@ -633,14 +708,14 @@ def getInterTempSim(entryA,entryB):
             return 1
         #intersection, B starts earlier than A
         else:
-            interv = getInterv([startA,endB])
+            interv = getInterv([entryA["time"][0],entryB["time"][1]])
     #intersection, A starts earlier than B
     elif startB>startA:
         #B in A
         if endB<endA:
             interv = getInterv(entryB["time"]).total_seconds()
         else:
-            interv = getInterv([startB,endA]).total_seconds()
+            interv = getInterv([entryB["time"][0],entryA["time"][1]]).total_seconds()
     
     res = interv/lengthA
     return res
@@ -782,7 +857,7 @@ def getExSim(entryA, entryB, geo, tim, cri):
     bboxB = checkBboxInput(entryB)
     vectorA = checkVectorInput(entryA)
     vectorB = checkVectorInput(entryB)
-
+    
     geoSim = 0
     tempSim = 0
 
@@ -825,8 +900,31 @@ def getExSim(entryA, entryB, geo, tim, cri):
     return sim 
 
 
+''' Calculate SimScore based on parameters
+Calculates similarity score between two entries based on parameters 
+input:  entries: Expects a list of entries (dictionaries), where each dict represents one entry of the repository.
 
+        entry:      {
+                                "id" : idOfTheEntry,
+                                "wkt_geometry" : [minLat, minLon, maxLat, maxLon],
+                                "vector" : [[lat,long],[lat,long]...],
+                                "time" : [start, end],
+                                "raster"  : bool
+                            }   
 
+        ent is an entry and therefor the same format
+        n : number of similar records to be retrieved
+        ext : weight of extent similarity 
+        dat : weight of datatype similarity 
+        loc : weight of location similarity
+        geo : weight geographic similarity
+        tim : weight temporal similarity
+        max : max value for weights
+        dtl : boolean, true if detailed
+
+outpus:
+        SimScore([0,1[)
+'''
 
 def getSimScoreTotal(entryA, entryB, geo, tim, ext, dat, loc, mxm, dtl):
 
@@ -835,14 +933,19 @@ def getSimScoreTotal(entryA, entryB, geo, tim, ext, dat, loc, mxm, dtl):
     dSim = getIndSim(entryA, entryB, geo, tim, 2)
     if dtl is None or not dtl or not checkVectorInput(entryA) or not checkVectorInput(entryB): 
         lSim = getIndSim(entryA, entryB, geo, tim, 1)
+        #print("lSim "+str(lSim))
     else: 
         lSim = getExSim(entryA, entryB, geo, tim, 1)
+        #print("lSim "+str(lSim))
     if dtl is None or not dtl or not checkVectorInput(entryA) or not checkVectorInput(entryB): 
         eSim = getIndSim(entryA, entryB, geo, tim, 0)
+        #print("eSim "+str(eSim))
     else: 
         eSim = getExSim(entryA, entryB, geo, tim, 0)
-    if dtl and checkVectorInput(entryA) and checkVectorInput(entryB) and loc>0 and ext<0:
+        #print("eSim "+str(eSim))
+    if dtl and checkVectorInput(entryA) and checkVectorInput(entryB) and loc>0 and ext>0 and geo>0:
         sSim = getExSim(entryA, entryB, geo, tim, 3)
+        #print("sSim "+str(sSim))
         totalSum=ext+dat+loc+((ext+loc)/2)
     else:
         totalSum=ext+dat+loc
@@ -864,7 +967,9 @@ def getSimScoreTotal(entryA, entryB, geo, tim, ext, dat, loc, mxm, dtl):
 
 
 '''
-getSimilarityScore: Berechnet den SimilarityScore
+getSimilarityScore: Calculates SimilarityScore of all entries including check of parameters
+Collects n entries using O(nlogn) method of Heapsort/Priority Queue
+input:
         entries: Expects a list of entries (dictionaries), where each dict represents one entry of the repository.
 
                 entry:      {
@@ -884,6 +989,9 @@ getSimilarityScore: Berechnet den SimilarityScore
         tim : weight temporal similarity
         max : max value for weights
         dtl : boolean, true if detailed
+
+output:
+        list inclduing ids and similarity scores for n most similar entries
 '''
 
 def getSimilarRecords(entries, ent, n, ext, dat, loc, geo, tim, mxm, dtl):
@@ -920,126 +1028,4 @@ def getSimilarRecords(entries, ent, n, ext, dat, loc, geo, tim, mxm, dtl):
     output=sorted(records, key= lambda x: x[1], reverse=True)
 
     return output
-
-
-#####################################################################
-################ Testdata ###########################################
-#####################################################################
-
-muenster1t1 ={
-        "id": 'urn:uuid: 1a', 
-        "wkt_geometry": [51.917591, 7.549667, 52.00137, 7.704849], 
-        'time': ['2000-01-11T02:28:00Z', '2010-01-11T02:28:00Z'], 
-        'vector': [[52.00137, 7.549667], [52.00137, 7.704849], [51.917591, 7.704849], [51.917591, 7.549667]], 
-        'raster': False}
-
-#################################
-##### different temp extent #####
-#################################
-
-#same length, no intersection
-muenster1t2 ={
-        "id": 'urn:uuid: 1b', 
-        "wkt_geometry": [51.917591, 7.549667, 52.00137, 7.704849], 
-        'time': ['1980-01-11T02:28:00Z', '1990-01-11T02:28:00Z'], 
-        'vector': [[52.00137, 7.549667], [52.00137, 7.704849], [51.917591, 7.704849], [51.917591, 7.549667]], 
-        'raster': False}
-
-
-
-muenster1t3 ={
-        "id": 'urn:uuid: 1c', 
-        "wkt_geometry": [51.917591, 7.549667, 52.00137, 7.704849], 
-        'time': None, 
-        'vector': [[52.00137, 7.549667], [52.00137, 7.704849], [51.917591, 7.704849], [51.917591, 7.549667]], 
-        'raster': False}
-
-muenster1t4 ={
-        "id": 'urn:uuid: 1d', 
-        "wkt_geometry": [51.917591, 7.549667, 52.00137, 7.704849], 
-        'time': None, 
-        'vector': [[52.00137, 7.549667], [52.00137, 7.704849], [51.917591, 7.704849], [51.917591, 7.549667]], 
-        'raster': False}
-
-
-#################################
-#### different datatype #########
-#################################
-
-muenster1d1 ={
-        "id": 'urn:uuid: 1dd', 
-        "wkt_geometry": [51.917591, 7.549667, 51.917591, 7.549667], 
-        'time': ['2000-01-11T02:28:00Z', '2010-01-11T02:28:00Z'], 
-        'vector': [[52.00137, 7.549667]], 
-        'raster': False}
-
-muenster1d2 ={
-        "id": 'urn:uuid: 1dd', 
-        "wkt_geometry": [51.917591, 7.549667, 52.00137, 7.704849], 
-        'time': ['2000-01-11T02:28:00Z', '2010-01-11T02:28:00Z'], 
-        'vector': [[52.00137, 7.549667], [52.00137, 7.704849], [51.917591, 7.704849], [51.917591, 7.549667]],
-        'raster': True}
-
-
-#################################
-##### different geo extent ######
-#################################
-
-
-
-australien ={
-        'id': 'urn:uuid:2', 
-        "wkt_geometry": [-51.917591, -7.549667, -52.00137, -7.704849], 
-        'time': None, 
-        'vector': [[-52.00137, -7.549667], [-52.00137, -7.704849], [-51.917591, -7.704849], [-51.917591, -7.549667]], 
-        'raster': False}
-
-Muenster2 ={
-        'id': 'urn:uuid:3', 
-        'wkt_geometry': [51.917168, 7.548981, 52.00137, 7.704849], 
-        'time': None, 
-        'vector': [[51.931988, 7.548981], [51.99841, 7.549667], [52.00137, 7.554131], [52.001158, 7.699699], [51.99841, 7.704849], [51.921403, 7.704506], [51.917168, 7.693176], [51.917168, 7.598419], [51.917168, 7.554474]], 
-        'raster': False
-    }
-Muenster3 ={
-        'id': 'urn:uuid:4', 
-        'wkt_geometry': [51.917168, 7.551041, 52.00137, 7.704163], 
-        'time': None, 
-        'vector': [[51.917168, 7.551041], [52.00137, 7.704163], [51.917168, 7.551041]], 
-        'raster': False
-    }
-
-Muenster4 ={
-        'id': 'urn:uuid:5', 
-        'wkt_geometry': [51.898529, 7.413025, 52.054179, 7.816086], 
-        'time': ['2007-06-11T02:28:00Z', '2007-08-11T02:28:00Z'], 
-        'vector': [[51.945535, 7.413025], [52.054179, 7.732315], [51.994183, 7.816086], [51.898529, 7.488556]], 
-        'raster': False
-    }
-
-Mitteldeutschland ={
-        'id': 'urn:uuid:6', 
-        'wkt_geometry': [51.618017, 7.619019, 52.593038, 9.574585], 
-        'time': ['2007-06-11T02:28:00Z', '2007-08-11T02:28:00Z'], 
-        'vector': [[52.593038, 7.619019], [52.593038, 9.574585], [51.618017, 9.574585], [51.618017, 7.619019]], 
-        'raster': False
-    }
-
-entriesGeo=[muenster1t1, muenster1t2, Muenster2, Muenster3, Muenster4, australien, Mitteldeutschland]
-entriesDat=[muenster1t1, muenster1d1, muenster1d2]
-entriesTime=[muenster1t1, muenster1t2, muenster1t3, muenster1t4]
-entriesAll=[muenster1t1, muenster1t2, Muenster2, Muenster3, Muenster4, australien, Mitteldeutschland, muenster1t3, muenster1t4, muenster1t2, muenster1d1, muenster1d2]
-
-print(getSimilarRecords(entriesGeo, muenster1t1, 10,0,0,2,1,0,5,True))
-'''
-        ent is an entry and therefor the same format
-        n : number of similar records to be retrieved
-        ext : weight of extent similarity 
-        dat : weight of datatype similarity 
-        loc : weight of location similarity
-        geo : weight geographic similarity
-        tim : weight temporal similarity
-        max : max value for weights
-        dtl : boolean, true if detailed
-'''
 
