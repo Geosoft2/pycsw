@@ -26,7 +26,7 @@ Please read the docs at <http://pycsw.org/docs> for more information.
 
 ``` sourceCode python
 git clone https://github.com/KathHv/pycsw.git && cd pycsw
-pip install -e . && pip install -r requirements-standalone.txt
+pip3 install -e . && pip3 install -r requirements-standalone.txt
 ```
 
 ### Configuration for Server-Admin
