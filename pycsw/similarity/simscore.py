@@ -10,7 +10,9 @@ from pyproj import Proj
 '''
 @author: Carolin Wortmann
 
-
+Main function to be used:
+    getSimilarRecords   to obtain specified number of similar records given a list of records and a specific records 
+                        to cmompare to
 
 Help functions:
 
@@ -119,9 +121,6 @@ def ConvertToRadian(input):
     return float(input) * math.pi/ 180
 
 
-#Calculates diagonal of Bounding Box by use of Haversine Formula
-
-
 ''' Calculation of diagonal length
     Calculates length of bounding box for entry
     input: 
@@ -136,6 +135,7 @@ def getDiagonal(entry):
     lat1 = entry["wkt_geometry"][0]
 
     return gDiag(lat1,lat2,lon1,lon2)
+
 
 ''' Calculate Diagonal - inner function
 Calculates length of line between two points
@@ -178,7 +178,8 @@ def getInterv(entry):
     tdelta = datetime.datetime.strptime(t2, frmt) - datetime.datetime.strptime(t1, frmt)
     return tdelta
 
-'''Calculate center of bbox
+
+'''Calculation of center of bounding box
 input:
     entry : repository record 
 output:
@@ -223,7 +224,6 @@ output:
 def getPolygCenter(coord):
     pol=Polygon(coord)
     return list(pol.centroid.coords)
-
 
 
 
