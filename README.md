@@ -42,6 +42,13 @@ Run in pycsw folder:
 python3 pycsw/wsgi.py
 ```
 
+## Run in Docker
+Install Docker on device. For installing instructions see this [link](https://docs.docker.com/install/linux/docker-ce/ubuntu/)
+```docker run -p 8000:8000 donkeykh/geopycsw
+
+```
+
+
 ### What is new in our pycsw version?
 We enhanced pycsw with two similarity functions that include metadata
 fields of the records like the wkt\_geometry, the temporal extent, the
