@@ -1300,7 +1300,6 @@ class Csw3(object):
         LIMIT_SIMILARRECORDS = int(metadatasimilarity.get('limit_for_similarrecords'))
 
         MAX_NUMBER_RECORDS = None
-        WEIGHT_SPATIAL_SIM = None
         WEIGHT_TEMP_SIM = None
         WEIGHT_DATATYPE_SIM = None
         WEIGHT_LOCATION_SIM = None
@@ -1323,17 +1322,6 @@ class Csw3(object):
                  'similarRecords', "Parameter value of 'similarrecords' must be integer")
         else:
             MAX_NUMBER_RECORDS = int(metadatasimilarity.get('similarrecords'))
-        if 'spatial_weight' in self.parent.kvp:
-            try:
-                WEIGHT_SPATIAL_SIM = float(self.parent.kvp['spatial_weight'])
-                if WEIGHT_SPATIAL_SIM < weight_min_value or WEIGHT_SPATIAL_SIM > weight_max_value:
-                    return self.exceptionreport('InvalidParameterValue',
-                 'spatial_weight', "Parameter value must be in the range [%s, %s]" % (weight_min_value, weight_max_value)) 
-            except:
-                return self.exceptionreport('InvalidParameterValue',
-                 'spatial_weight', "Parameter value of 'spatial_weight' must be integer or float")
-        else:
-            WEIGHT_SPATIAL_SIM = int(metadatasimilarity.get('spatial_weight'))
         if 'temp_weight' in self.parent.kvp:
             try:
                 WEIGHT_TEMP_SIM = float(self.parent.kvp['temp_weight'])
@@ -1407,7 +1395,7 @@ class Csw3(object):
             else:
                 raise Exception("Value of fields 'detailed_algorithm' is not valid")
 
-        LOGGER.debug([MAX_NUMBER_RECORDS, WEIGHT_SPATIAL_SIM, WEIGHT_TEMP_SIM, WEIGHT_DATATYPE_SIM, 
+        LOGGER.debug([MAX_NUMBER_RECORDS, WEIGHT_TEMP_SIM, WEIGHT_DATATYPE_SIM, 
         WEIGHT_LOCATION_SIM, WEIGHT_GEOGRAPHIC_SIM, WEIGHT_EXTENT_SIM, DETAILED_ALGORITHM])
 
         # get all records
