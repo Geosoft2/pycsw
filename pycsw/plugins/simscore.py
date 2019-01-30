@@ -950,19 +950,14 @@ def getSimScoreTotal(entryA, entryB, geo, tim, ext, dat, loc, mxm, dtl):
     dSim = getIndSim(entryA, entryB, geo, tim, 2)
     if dtl is None or not dtl or not checkVectorInput(entryA) or not checkVectorInput(entryB): 
         lSim = getIndSim(entryA, entryB, geo, tim, 1)
-        #print("lSim "+str(lSim))
     else: 
         lSim = getExSim(entryA, entryB, geo, tim, 1)
-        #print("lSim "+str(lSim))
     if dtl is None or not dtl or not checkVectorInput(entryA) or not checkVectorInput(entryB): 
         eSim = getIndSim(entryA, entryB, geo, tim, 0)
-        #print("eSim "+str(eSim))
     else: 
         eSim = getExSim(entryA, entryB, geo, tim, 0)
-        #print("eSim "+str(eSim))
     if dtl and checkVectorInput(entryA) and checkVectorInput(entryB) and loc>0 and ext>0 and geo>0:
         sSim = getExSim(entryA, entryB, geo, tim, 3)
-        #print("sSim "+str(sSim))
         totalSum=ext+dat+loc+((ext+loc)/2)
     else:
         totalSum=ext+dat+loc
